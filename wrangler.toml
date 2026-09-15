@@ -1,0 +1,6 @@
+name = "xhslink"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+routes = [{ pattern = "xhslink.festivity.moe", custom_domain = true }]
