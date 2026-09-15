@@ -1,10 +1,10 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { createEmbed, errorHtml } from "./embed";
 import { extractPost, fetchNote, parseState, resolveShortlink } from "./xhs";
 
 const app = new Hono();
 
-function isEmbedRequest(c: any): boolean {
+function isEmbedRequest(c: Context): boolean {
   const ua = c.req.header("User-Agent") ?? c.req.header("user-agent") ?? "";
   if (ua.includes("Discordbot")) return true;
   try {
@@ -21,7 +21,7 @@ async function embedFromNoteUrl(noteUrl: string, origin: string, currentPath: st
   return createEmbed(post, { origin, currentPath, shareId });
 }
 
-async function handleShare(c: any, kind: "o" | "a", id: string) {
+async function handleShare(c: Context, kind: "o" | "a", id: string) {
   const url = new URL(c.req.url);
   const origin = url.origin;
   const currentPath = url.pathname + url.search;
@@ -30,15 +30,11 @@ async function handleShare(c: any, kind: "o" | "a", id: string) {
   }
   try {
     const noteUrl = await resolveShortlink(`${kind}/${id}`);
-    const html = await createEmbedFromNote(noteUrl, origin, currentPath, id);
+    const html = await embedFromNoteUrl(noteUrl, origin, currentPath, `${kind}/${id}`);
     return c.html(html);
   } catch (e) {
     return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
   }
-}
-
-async function createEmbedFromNote(noteUrl: string, origin: string, currentPath: string, shareId?: string) {
-  return embedFromNoteUrl(noteUrl, origin, currentPath, shareId);
 }
 
 app.get("/", (c) => c.redirect("https://github.com/festivities/fixXiaohongshu", 302));

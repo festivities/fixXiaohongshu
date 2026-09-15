@@ -97,13 +97,16 @@ export function extractPost(state: any): Post {
     }
     if (entries.length > 0) {
       const best = entries.reduce((a: any, b: any) => (Number(a.width) || 0) * (Number(a.height) || 0) >= (Number(b.width) || 0) * (Number(b.height) || 0) ? a : b);
-      video = {
-        url: upgradeScheme(String(best.masterUrl ?? "")),
-        backupUrls: (best.backupUrls ?? []).map((u: unknown) => upgradeScheme(String(u))),
-        width: Number(best.width) || 0,
-        height: Number(best.height) || 0,
-        durationMs: Number(best.duration) || 0,
-      };
+      const url = upgradeScheme(String(best.masterUrl ?? ""));
+      if (url) {
+        video = {
+          url,
+          backupUrls: (best.backupUrls ?? []).map((u: unknown) => upgradeScheme(String(u))),
+          width: Number(best.width) || 0,
+          height: Number(best.height) || 0,
+          durationMs: Number(best.duration) || 0,
+        };
+      }
     }
   }
 

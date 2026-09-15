@@ -37,7 +37,7 @@ export function createEmbed(post: Post, opts: { origin: string; currentPath: str
   ];
 
   if (post.video) {
-    const videoUrl = opts.shareId ? `${opts.origin}/dl/${opts.shareId}` : post.video.url;
+    const videoUrl = opts.shareId ? `${opts.origin}/dl/${encodeURIComponent(opts.shareId)}` : post.video.url;
     tags.push(
       `<meta property="og:type" content="video.other">`,
       `<meta property="og:video" content="${encode(videoUrl)}">`,

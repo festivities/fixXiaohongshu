@@ -44,13 +44,13 @@ describe("displayTitle", () => {
 });
 
 describe("createEmbed video", () => {
-  const html = createEmbed(base, { origin: "https://xhslink.festivity.moe", currentPath: "/o/abc123", shareId: "abc123" });
+  const html = createEmbed(base, { origin: "https://xhslink.festivity.moe", currentPath: "/o/abc123", shareId: "o/abc123" });
   it("has theme color and title", () => {
     expect(html).toContain('content="#ff2442"');
     expect(html).toContain("魔卡中最具梦核感的一段");
   });
-  it("points og:video at /dl/ share id", () => {
-    expect(html).toContain('property="og:video" content="https://xhslink.festivity.moe/dl/abc123"');
+  it("points og:video at kind-prefixed /dl/ share id, URI-encoded", () => {
+    expect(html).toContain('property="og:video" content="https://xhslink.festivity.moe/dl/o%2Fabc123"');
     expect(html).toContain('content="video/mp4"');
     expect(html).toContain('property="og:video:width" content="720"');
   });

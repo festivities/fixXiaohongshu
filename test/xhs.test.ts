@@ -57,6 +57,29 @@ describe("extractPost video", () => {
     expect(post.video!.height).toBeGreaterThan(0);
     for (const u of post.video!.backupUrls) expect(u.startsWith("https://")).toBe(true);
   });
+  it("falls back to h265 when h264 is empty and picks max resolution", () => {
+    const state = JSON.parse(JSON.stringify(videoState));
+    const note = state.note.noteDetailMap[state.note.firstNoteId].note;
+    note.video.media.stream = {
+      h264: [],
+      h265: [
+        { masterUrl: "http://sns-video-zl.xhscdn.com/low.mp4", width: 360, height: 480, duration: 1000, backupUrls: [] },
+        { masterUrl: "http://sns-video-zl.xhscdn.com/high.mp4", width: 1080, height: 1440, duration: 1000, backupUrls: [] },
+      ],
+    };
+    const post = extractPost(state);
+    expect(post.video!.url).toBe("https://sns-video-zl.xhscdn.com/high.mp4");
+    expect(post.video!.width).toBe(1080);
+  });
+
+  it("omits video when no stream entry has a masterUrl", () => {
+    const state = JSON.parse(JSON.stringify(videoState));
+    const note = state.note.noteDetailMap[state.note.firstNoteId].note;
+    note.video.media.stream = { h264: [{ width: 720, height: 960, duration: 1000, backupUrls: [] }] };
+    const post = extractPost(state);
+    expect(post.video).toBeUndefined();
+  });
+
   it("collects tags and images", () => {
     expect(post.tags).toContain("百变小樱");
     expect(post.images.length).toBeGreaterThan(0);
