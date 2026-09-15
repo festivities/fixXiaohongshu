@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { createEmbed, errorHtml } from "./embed";
-import { extractPost, fetchNote, parseState, resolveShortlink } from "./xhs";
+import { extractPost, fetchNote, parseState, resolveShortlink, CHROME_UA } from "./xhs";
 
 const app = new Hono();
 
@@ -72,7 +72,20 @@ app.get("/dl/:id", async (c) => {
     if (!post.video?.url) throw new Error("no video found for this post");
     const host = new URL(post.video.url).host;
     if (!host.endsWith(".xhscdn.com")) throw new Error(`unexpected video host: ${host}`);
-    return c.redirect(post.video.url, 302);
+    // ponytail: stream bytes (200) rather than 302 — Discord's video unfurler does not reliably follow redirects on og:video
+    const range = c.req.header("range");
+    const up = await fetch(post.video.url, {
+      headers: { "user-agent": CHROME_UA, ...(range ? { range } : {}) },
+    });
+    if (!up.ok || !up.body) throw new Error(`video fetch failed with status ${up.status}`);
+    const headers = new Headers();
+    headers.set("content-type", up.headers.get("content-type") ?? "video/mp4");
+    for (const h of ["content-length", "content-range", "accept-ranges"]) {
+      const v = up.headers.get(h);
+      if (v) headers.set(h, v);
+    }
+    headers.set("cache-control", "public, max-age=3600");
+    return new Response(up.body, { status: up.status, headers });
   } catch (e) {
     return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
   }

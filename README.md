@@ -33,8 +33,10 @@ error-HTML pattern) and
    repaired to `null`), the note extracted, and embed HTML with `og:` tags
    re-served to Discord.
 4. Video posts get `og:video` pointing at `/dl/:id`, which re-resolves a fresh
-   signed CDN URL on every hit (signatures expire, so no static URL is stored).
-   Humans (non-`Discordbot` UAs) are 302-redirected to the original XHS URL.
+   signed CDN URL and streams the bytes back (HTTP 200 with Range support —
+   Discord's video unfurler does not reliably follow redirects, so no 302 is
+   used). Humans (non-`Discordbot` UAs) are 302-redirected to the original XHS
+   URL.
 
 XHS only serves the SSR page to browser-TLS clients. Production Cloudflare
 Workers `fetch` with a Chrome UA passes; local `wrangler dev` (workerd) does
