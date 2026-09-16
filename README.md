@@ -18,6 +18,7 @@ https://xhslink.festivity.moe/explore/{noteId}?xsec_token=...&xsec_source=...
 ```
 
 Example of a working Discord embed:
+
 ![embed](https://raw.githubusercontent.com/hareru/public/main/xiaohongshu/A.png)
 
 Inspired by [fxBilibili](https://github.com/seriaati/fxBilibili) (embed layout,
