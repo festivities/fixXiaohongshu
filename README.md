@@ -18,8 +18,7 @@ https://xhslink.festivity.moe/explore/{noteId}?xsec_token=...&xsec_source=...
 ```
 
 Example of a working Discord embed:
-
-![Discord embed of a Xiaohongshu video post](https://raw.githubusercontent.com/hareru/public/main/xiaohongshu/A.png)
+![embed](https://raw.githubusercontent.com/hareru/public/main/xiaohongshu/A.png)
 
 Inspired by [fxBilibili](https://github.com/seriaati/fxBilibili) (embed layout,
 error-HTML pattern) and
@@ -75,3 +74,5 @@ npm test        # vitest, pure functions only, no network (real fixtures in test
   for image posts; video posts embed the player).
 - No caching yet — every embed hit re-fetches upstream. The upgrade path is
   the Workers Cache API on the note-page fetch.
+
+### AI assistance was used in this project.
