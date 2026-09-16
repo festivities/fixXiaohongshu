@@ -17,6 +17,10 @@ There is also a passthrough form for full note URLs:
 https://xhslink.festivity.moe/explore/{noteId}?xsec_token=...&xsec_source=...
 ```
 
+Example of a working Discord embed:
+
+![Discord embed of a Xiaohongshu video post](https://raw.githubusercontent.com/hareru/public/main/xiaohongshu/A.png)
+
 Inspired by [fxBilibili](https://github.com/seriaati/fxBilibili) (embed layout,
 error-HTML pattern) and
 [xiaohongshu-rednote-discord-embed](https://github.com/TheFalloutOf76/xiaohongshu-rednote-discord-embed)
