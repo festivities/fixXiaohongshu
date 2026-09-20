@@ -73,6 +73,11 @@ Consequence: when the service shows captcha-wall errors, it may be XHS flagging
 CF egress, not a code bug. Verify with the reference client (curl_cffi,
 residential IP) before debugging code. If flapping becomes chronic, the
 fallback architecture is a Python fetch sidecar (fxBilibili-style, curl_cffi).
+Full browser navigation headers (`XHS_HEADERS` in `src/xhs.ts`) are sent on
+upstream fetches, but they do NOT lift an egress-IP flag — verified live:
+flagged egress stays walled with full headers while residential IP passes
+with curl's non-browser TLS. IP reputation dominates; headers only help at
+the margin.
 
 ### Shortlink flow
 
