@@ -1,7 +1,7 @@
 import { jsonrepair } from "jsonrepair";
 
 export const CHROME_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36";
 
 // ponytail: full browser navigation headers — XHS risk-scores header
 // completeness, UA alone gets challenged sooner; keep sec-ch-ua in sync with CHROME_UA
@@ -11,7 +11,7 @@ export const XHS_HEADERS: Record<string, string> = {
   "accept-language": "en-US,en;q=0.9",
   "cache-control": "max-age=0",
   priority: "u=0, i",
-  "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not)A;Brand";v="99"',
+  "sec-ch-ua": '"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="99"',
   "sec-ch-ua-mobile": "?0",
   "sec-ch-ua-platform": '"Windows"',
   "sec-fetch-dest": "document",
