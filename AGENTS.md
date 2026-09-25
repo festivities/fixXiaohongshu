@@ -141,8 +141,9 @@ re-resolves instead of storing a URL.
    path prefix (`/discovery/item/` or `/explore/`) before use — the worker must
    never be turned into an open fetcher/redirector.
 3. `/dl` asserts the video host ends with `.xhscdn.com` before fetching.
-4. `upgradeScheme` only rewrites `http://*.xhscdn.com/` — regex anchored so it
-   cannot cross `/`.
+4. `upgradeScheme` only rewrites `http://` for `*.xhscdn.com` and
+   `*.rednotecdn.com` (rednote serves images off the latter) — regex anchored
+   so it cannot cross `/`.
 5. `:id` path params can contain `%2F`-encoded slashes (Hono decodes them);
    they flow into xhslink.com paths only, never arbitrary hosts.
 

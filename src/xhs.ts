@@ -37,7 +37,7 @@ export interface Post {
 }
 
 export function upgradeScheme(url: string): string {
-  return url.replace(/^http:\/\/([^/]*\.xhscdn\.com\/)/, "https://$1");
+  return url.replace(/^http:\/\/([^/]*\.(?:xhscdn|rednotecdn)\.com\/)/, "https://$1");
 }
 
 export async function resolveShortlink(path: string, useRednote = false): Promise<string> {

@@ -139,4 +139,8 @@ describe("upgradeScheme", () => {
     expect(upgradeScheme("https://sns-video-zl.xhscdn.com/a.mp4")).toBe("https://sns-video-zl.xhscdn.com/a.mp4");
     expect(upgradeScheme("http://example.com/a.mp4")).toBe("http://example.com/a.mp4");
   });
+  it("upgrades rednotecdn http urls", () => {
+    expect(upgradeScheme("http://sns-web-i10.rednotecdn.com/a.jpg")).toBe("https://sns-web-i10.rednotecdn.com/a.jpg");
+    expect(upgradeScheme("http://xhslink.com/a.mp4")).toBe("http://xhslink.com/a.mp4");
+  });
 });
