@@ -60,6 +60,26 @@ npx wrangler deploy
 Custom domain (`xhslink.festivity.moe`) is configured via `routes` in
 `wrangler.toml` and requires the `festivity.moe` zone in the account.
 
+## Authenticated fetching (optional)
+
+Anonymous Workers egress gets periodically walled by XHS. If that happens, the
+service can fetch as your logged-in browser session instead:
+
+```
+npx wrangler secret put XHS_COOKIES
+```
+
+Paste the full `cookie` header value from a logged-in `rednote.com` (or
+`xiaohongshu.com`) browser session — DevTools → Network → copy any document
+request as cURL → take the `cookie` value. With the secret set, note-page
+fetches go to `www.rednote.com` with your session cookies; without it, the
+service uses anonymous `www.xiaohongshu.com` fetching as before.
+
+Session cookies expire (`web_session`, 30-minute `acw_tc`). When embeds start
+failing with "XHS_COOKIES may have expired", paste a fresh cookie value. For
+local dev, put `XHS_COOKIES="..."` in `.dev.vars` (gitignored — never commit
+cookies to the repo).
+
 ## Dev / test
 
 ```

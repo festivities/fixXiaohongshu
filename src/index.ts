@@ -2,9 +2,16 @@ import { Hono, type Context } from "hono";
 import { createEmbed, errorHtml } from "./embed";
 import { extractPost, fetchNote, parseState, resolveShortlink, CHROME_UA } from "./xhs";
 
-const app = new Hono();
+type AppEnv = { Bindings: { XHS_COOKIES?: string } };
 
-function isEmbedRequest(c: Context): boolean {
+const app = new Hono<AppEnv>();
+
+function cookieOf(c: Context<AppEnv>): string | undefined {
+  const v = c.env.XHS_COOKIES?.trim();
+  return v ? v : undefined;
+}
+
+function isEmbedRequest(c: Context<AppEnv>): boolean {
   const ua = c.req.header("User-Agent") ?? c.req.header("user-agent") ?? "";
   if (ua.includes("Discordbot")) return true;
   try {
@@ -15,13 +22,13 @@ function isEmbedRequest(c: Context): boolean {
   }
 }
 
-async function embedFromNoteUrl(noteUrl: string, origin: string, currentPath: string, shareId?: string) {
-  const html = await fetchNote(noteUrl);
+async function embedFromNoteUrl(noteUrl: string, origin: string, currentPath: string, shareId?: string, cookie?: string) {
+  const html = await fetchNote(noteUrl, cookie);
   const post = extractPost(parseState(html));
   return createEmbed(post, { origin, currentPath, shareId });
 }
 
-async function handleShare(c: Context, kind: "o" | "a", id: string) {
+async function handleShare(c: Context<AppEnv>, kind: "o" | "a", id: string) {
   const url = new URL(c.req.url);
   const origin = url.origin;
   const currentPath = url.pathname + url.search;
@@ -29,8 +36,9 @@ async function handleShare(c: Context, kind: "o" | "a", id: string) {
     return c.redirect(`http://xhslink.com/${kind}/${id}`, 302);
   }
   try {
-    const noteUrl = await resolveShortlink(`${kind}/${id}`);
-    const html = await embedFromNoteUrl(noteUrl, origin, currentPath, `${kind}/${id}`);
+    const cookie = cookieOf(c);
+    const noteUrl = await resolveShortlink(`${kind}/${id}`, Boolean(cookie));
+    const html = await embedFromNoteUrl(noteUrl, origin, currentPath, `${kind}/${id}`, cookie);
     return c.html(html);
   } catch (e) {
     return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
@@ -49,14 +57,16 @@ app.get("/explore/:noteId", async (c) => {
   const origin = url.origin;
   const currentPath = url.pathname + url.search;
   const noteId = c.req.param("noteId");
+  const cookie = cookieOf(c);
+  const host = cookie ? "www.rednote.com" : "www.xiaohongshu.com";
   if (!isEmbedRequest(c)) {
-    return c.redirect(`https://www.xiaohongshu.com/explore/${noteId}${url.search}`, 302);
+    return c.redirect(`https://${host}/explore/${noteId}${url.search}`, 302);
   }
   if (!url.searchParams.get("xsec_token")) {
     return c.html(errorHtml("missing xsec_token query param"));
   }
   try {
-    const html = await embedFromNoteUrl(`https://www.xiaohongshu.com/explore/${noteId}${url.search}`, origin, currentPath);
+    const html = await embedFromNoteUrl(`https://${host}/explore/${noteId}${url.search}`, origin, currentPath, undefined, cookie);
     return c.html(html);
   } catch (e) {
     return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
@@ -67,8 +77,9 @@ app.get("/dl/:id", async (c) => {
   const id = c.req.param("id");
   try {
     // ponytail: /dl ids are shortlink share ids (o/a); /explore links have no share id so they embed the CDN url directly
-    const noteUrl = await resolveShortlink(id.includes("/") ? id : `o/${id}`);
-    const post = extractPost(parseState(await fetchNote(noteUrl)));
+    const cookie = cookieOf(c);
+    const noteUrl = await resolveShortlink(id.includes("/") ? id : `o/${id}`, Boolean(cookie));
+    const post = extractPost(parseState(await fetchNote(noteUrl, cookie)));
     if (!post.video?.url) throw new Error("no video found for this post");
     const host = new URL(post.video.url).host;
     if (!host.endsWith(".xhscdn.com")) throw new Error(`unexpected video host: ${host}`);

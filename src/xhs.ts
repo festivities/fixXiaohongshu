@@ -40,7 +40,7 @@ export function upgradeScheme(url: string): string {
   return url.replace(/^http:\/\/([^/]*\.xhscdn\.com\/)/, "https://$1");
 }
 
-export async function resolveShortlink(path: string): Promise<string> {
+export async function resolveShortlink(path: string, useRednote = false): Promise<string> {
   const r = await fetch("http://xhslink.com/" + path, {
     headers: XHS_HEADERS,
     redirect: "manual",
@@ -49,6 +49,13 @@ export async function resolveShortlink(path: string): Promise<string> {
   if (r.status < 300 || r.status >= 400 || !location) {
     throw new Error(`shortlink returned no redirect (status ${r.status})`);
   }
+  return rewriteNoteUrl(location, useRednote);
+}
+
+// ponytail: validates the shortlink target, then picks the fetch host —
+// rednote.com keeps path+query untouched (cookie mode), xiaohongshu.com
+// gets the discovery/item → explore rewrite. Only these two hosts ever result.
+export function rewriteNoteUrl(location: string, useRednote: boolean): string {
   let u: URL;
   try {
     u = new URL(location);
@@ -58,17 +65,30 @@ export async function resolveShortlink(path: string): Promise<string> {
   if (u.host !== "www.xiaohongshu.com" || (!u.pathname.startsWith("/discovery/item/") && !u.pathname.startsWith("/explore/"))) {
     throw new Error(`unexpected redirect host/path: ${u.host}${u.pathname}`);
   }
+  if (useRednote) {
+    return `https://www.rednote.com${u.pathname}${u.search}`;
+  }
   const rewritten = u.pathname.replace("/discovery/item/", "/explore/");
   return `https://www.xiaohongshu.com${rewritten}${u.search}`;
 }
 
-export async function fetchNote(noteUrl: string): Promise<string> {
+// ponytail: cookies ride in the XHS_COOKIES secret (wrangler secret put),
+// never in code — a logged-in session passes walls the anonymous fetch cannot
+export function buildNoteHeaders(cookie?: string): Record<string, string> {
+  if (!cookie) return XHS_HEADERS;
+  return { ...XHS_HEADERS, cookie, Referer: "https://www.rednote.com/" };
+}
+
+export async function fetchNote(noteUrl: string, cookie?: string): Promise<string> {
   const r = await fetch(noteUrl, {
-    headers: XHS_HEADERS,
+    headers: buildNoteHeaders(cookie),
     redirect: "manual",
   });
   if (r.status >= 300 && r.status < 400) {
-    throw new Error(`note page redirected to ${r.headers.get("location")} (token may be expired)`);
+    const where = r.headers.get("location");
+    throw new Error(
+      `note page redirected to ${where}${cookie ? " (XHS_COOKIES may have expired — refresh the secret)" : " (token may be expired)"}`,
+    );
   }
   if (!r.ok) {
     throw new Error(`note page fetch failed with status ${r.status}`);

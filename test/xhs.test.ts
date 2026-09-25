@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractPost, parseState, upgradeScheme } from "../src/xhs";
+import { buildNoteHeaders, extractPost, parseState, rewriteNoteUrl, upgradeScheme, XHS_HEADERS } from "../src/xhs";
 import imageState from "./fixtures/image.json";
 import videoState from "./fixtures/video.json";
 
@@ -95,6 +95,41 @@ describe("extractPost image note", () => {
     expect(post.title).toBe("");
     expect(post.desc.length).toBeGreaterThan(0);
     expect(post.images.length).toBeGreaterThan(0);
+  });
+});
+
+describe("rewriteNoteUrl", () => {
+  const loc =
+    "https://www.xiaohongshu.com/discovery/item/6aa1380d0000000025034af9?xsec_token=ABC%3D&xsec_source=app_share";
+  it("swaps host to rednote keeping path and full query", () => {
+    expect(rewriteNoteUrl(loc, true)).toBe(
+      "https://www.rednote.com/discovery/item/6aa1380d0000000025034af9?xsec_token=ABC%3D&xsec_source=app_share",
+    );
+  });
+  it("rewrites discovery/item to explore on xiaohongshu", () => {
+    expect(rewriteNoteUrl(loc, false)).toBe(
+      "https://www.xiaohongshu.com/explore/6aa1380d0000000025034af9?xsec_token=ABC%3D&xsec_source=app_share",
+    );
+  });
+  it("rejects off-host and off-path redirects", () => {
+    expect(() => rewriteNoteUrl("https://evil.com/discovery/item/1", true)).toThrow();
+    expect(() => rewriteNoteUrl("https://www.xiaohongshu.com/", false)).toThrow();
+    expect(() => rewriteNoteUrl("not a url", false)).toThrow();
+  });
+});
+
+describe("buildNoteHeaders", () => {
+  it("sends no cookie without a session", () => {
+    const h = buildNoteHeaders(undefined);
+    expect(h).toEqual(XHS_HEADERS);
+    expect("cookie" in h).toBe(false);
+    expect("Referer" in h).toBe(false);
+  });
+  it("attaches cookie and rednote referer with a session", () => {
+    const h = buildNoteHeaders("a1=xyz; webId=abc");
+    expect(h.cookie).toBe("a1=xyz; webId=abc");
+    expect(h.Referer).toBe("https://www.rednote.com/");
+    expect(h["user-agent"]).toBe(XHS_HEADERS["user-agent"]);
   });
 });
 

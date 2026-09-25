@@ -191,6 +191,9 @@ Discord.
 - No caching — every embed hit re-fetches upstream. Upgrade: Workers Cache API
   on the note-page fetch (30–60 min TTL, keyed by note id).
 - One `og:image` (Discord shows one thumbnail regardless).
-- No login/cookie support — expired share tokens are unfixable server-side.
+- No login support by default — expired share tokens are unfixable
+  server-side. Optional `XHS_COOKIES` secret makes note-page fetches ride a
+  logged-in session via `www.rednote.com` (see README); refresh it when embeds
+  report it expired.
 - Workers egress intermittency (see Anti-bot) — no mitigation built; if it
   becomes chronic, move note-page fetching to a curl_cffi sidecar.
