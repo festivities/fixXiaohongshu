@@ -79,21 +79,40 @@ export function buildNoteHeaders(cookie?: string): Record<string, string> {
   return { ...XHS_HEADERS, cookie, Referer: "https://www.rednote.com/" };
 }
 
+// ponytail: same-host redirects are benign (XHS canonicalizes explore →
+// discovery/item when a session is present); only wall paths and off-host hops
+// are rejections. Keeps fetchNote from following arbitrary redirects.
+export function classifyRedirect(currentUrl: string, location: string | null): { follow: string } | { blocked: string } {
+  if (!location) return { blocked: "a location-less redirect" };
+  const target = new URL(location, currentUrl);
+  const sameHost = target.host === new URL(currentUrl).host;
+  const isWall = ["/login", "/website-login", "/404"].some((p) => target.pathname.startsWith(p));
+  if (!sameHost || isWall) return { blocked: target.toString() };
+  return { follow: target.toString() };
+}
+
 export async function fetchNote(noteUrl: string, cookie?: string): Promise<string> {
-  const r = await fetch(noteUrl, {
-    headers: buildNoteHeaders(cookie),
-    redirect: "manual",
-  });
-  if (r.status >= 300 && r.status < 400) {
-    const where = r.headers.get("location");
-    throw new Error(
-      `note page redirected to ${where}${cookie ? " (XHS_COOKIES may have expired — refresh the secret)" : " (token may be expired)"}`,
-    );
+  const hint = cookie ? " (XHS_COOKIES may have expired — refresh the secret)" : " (token may be expired)";
+  let url = noteUrl;
+  for (let hop = 0; hop < 5; hop++) {
+    const r = await fetch(url, {
+      headers: buildNoteHeaders(cookie),
+      redirect: "manual",
+    });
+    if (r.status >= 300 && r.status < 400) {
+      const verdict = classifyRedirect(url, r.headers.get("location"));
+      if ("blocked" in verdict) {
+        throw new Error(`note page redirected to ${verdict.blocked}${hint}`);
+      }
+      url = verdict.follow;
+      continue;
+    }
+    if (!r.ok) {
+      throw new Error(`note page fetch failed with status ${r.status}`);
+    }
+    return r.text();
   }
-  if (!r.ok) {
-    throw new Error(`note page fetch failed with status ${r.status}`);
-  }
-  return r.text();
+  throw new Error(`note page had too many redirects${hint}`);
 }
 
 export function parseState(html: string): any {

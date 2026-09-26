@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNoteHeaders, extractPost, parseState, rewriteNoteUrl, upgradeScheme, XHS_HEADERS } from "../src/xhs";
+import { buildNoteHeaders, classifyRedirect, extractPost, parseState, rewriteNoteUrl, upgradeScheme, XHS_HEADERS } from "../src/xhs";
 import imageState from "./fixtures/image.json";
 import videoState from "./fixtures/video.json";
 
@@ -130,6 +130,31 @@ describe("buildNoteHeaders", () => {
     expect(h.cookie).toBe("a1=xyz; webId=abc");
     expect(h.Referer).toBe("https://www.rednote.com/");
     expect(h["user-agent"]).toBe(XHS_HEADERS["user-agent"]);
+  });
+});
+
+describe("classifyRedirect", () => {
+  const base = "https://www.rednote.com/explore/6ab50575000000001500ff1e?xsec_token=ABC%3D&xsec_source=pc_user";
+  it("follows same-host explore → discovery/item canonicalization", () => {
+    const rel = "/discovery/item/6ab50575000000001500ff1e?xsec_token=ABC%3D";
+    expect(classifyRedirect(base, rel)).toEqual({ follow: "https://www.rednote.com/discovery/item/6ab50575000000001500ff1e?xsec_token=ABC%3D" });
+    const abs = "https://www.rednote.com/discovery/item/6ab50575000000001500ff1e";
+    expect(classifyRedirect(base, abs)).toEqual({ follow: abs });
+  });
+  it("blocks login, captcha and sec-404 walls", () => {
+    for (const wall of ["/login?redirectPath=x", "/website-login/captcha?redirectPath=x", "/404/sec_abc"]) {
+      const v = classifyRedirect(base, wall);
+      expect("blocked" in v).toBe(true);
+    }
+  });
+  it("blocks off-host hops and missing locations", () => {
+    for (const hostile of ["https://evil.com/discovery/item/1", "//evil.com/x", "http://www.rednote.com.evil.com/x"]) {
+      expect("blocked" in classifyRedirect(base, hostile)).toBe(true);
+    }
+    expect("blocked" in classifyRedirect(base, null)).toBe(true);
+  });
+  it("blocks scheme downgrade to another host", () => {
+    expect("blocked" in classifyRedirect("https://www.rednote.com/explore/1", "javascript:alert(1)")).toBe(true);
   });
 });
 

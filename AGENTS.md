@@ -87,6 +87,10 @@ the margin.
   requests fail; always GET.
 - Rewrite path `discovery/item` → `explore`, keep query. `xsec_token` is
   mandatory (without it: 302 to `/404/sec_...`).
+- `fetchNote` follows up to 5 same-host, non-wall redirects — XHS canonicalizes
+  `/explore/` → `/discovery/item/` on the session host (rednote.com) and
+  blanket-rejecting redirects breaks that. Only `/login`, `/website-login`,
+  `/404` paths and off-host hops are treated as walls. See `classifyRedirect`.
 - Tokens are per-share-link and eventually expire (hours-to-days scale). An
   expired token = login-wall 302 on the note page = error embed. This is
   expected; do not try to work around it without logged-in cookie support
