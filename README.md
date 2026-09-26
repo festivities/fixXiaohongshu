@@ -2,7 +2,9 @@
 
 Fixes Xiaohongshu (XHS / REDnote) link previews on Discord. Discord's crawler
 (`Discordbot`) gets bounced to an XHS login wall, so shared posts embed with no
-title, image, or video. This service re-serves proper `og:` embed HTML.
+title, image, or video. This service re-serves proper `og:` embed HTML — and,
+via a fake Mastodon status endpoint, a rich embed with the post text plus the
+video player or up to 4 images.
 
 Swap the shortlink host in any XHS share link:
 

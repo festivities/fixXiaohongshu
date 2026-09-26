@@ -26,6 +26,7 @@ Run typecheck + tests after every change. Never commit with either failing.
 src/index.ts   Hono routes, Discordbot UA gate, /dl streaming, error HTML
 src/xhs.ts     resolveShortlink → fetchNote → parseState → extractPost, types
 src/embed.ts   createEmbed og-tag HTML, desc cleanup, stats line, errorHtml
+src/mastodon.ts  fake-Mastodon status JSON + player page (rich Discord embeds)
 test/          vitest, pure functions only, real sanitized fixtures (video + image)
 ```
 
@@ -42,6 +43,11 @@ test/          vitest, pure functions only, real sanitized fixtures (video + ima
   back** (HTTP 200, Range/206 passthrough). `:id` is a kind-prefixed share id
   (`o%2F...` / `a%2F...` — Hono URL-decodes params, so `id.includes("/")`
   distinguishes prefixed from legacy bare ids, defaulting bare to `o/`).
+- `GET /api/v1/statuses/:id` — fake-Mastodon status JSON for the note (see
+  Mastodon-fake section). Always HTTP 200; errors become a fallback status.
+- `GET /users/:username/statuses/:id` — the status's canonical page URL.
+  Content-negotiated: `text/html` in Accept → HTML media player; anything else
+  → the same JSON status (served as `application/activity+json`).
 - `GET /health` → `OK`; `GET /favicon.ico` → 204; `GET /` → GitHub redirect.
 
 ### The share-id contract (do not break)
@@ -51,6 +57,30 @@ emits `og:video = {origin}/dl/${encodeURIComponent(shareId)}`. `/o/` and `/a/`
 ids are **not** a shared keyspace — `/a/{id}` and `/o/{id}` resolve to different
 notes. Dropping the kind prefix silently breaks legacy `/a/` video embeds
 (review found this as the one Major bug; there is a test locking it in).
+
+### Mastodon-fake embeds (rich Discord embeds)
+
+Plain og tags give one image / a video player, no post text. To also get the
+post text and up to 4 images in a grid, the embed HTML advertises a fake
+Mastodon status: `<link rel="alternate" type="application/activity+json">`
+pointing at `/users/xiaohongshu/statuses/{noteId}?xsec_token=...`, and the
+Mastodon-shaped JSON comes from `buildStatus` in `src/mastodon.ts`. Discord
+treats the page as a Mastodon status and renders display_name/avatar (the real
+XHS user), `content` as the embed description, `media_attachments` as a video
+or a 4-image grid, and counts as replies/reblogs/favourites.
+
+Traps:
+
+- Discord may fetch the status route with no query params, but XHS needs the
+  share link's `xsec_token`. The token is (a) carried on the alternate link,
+  and (b) cached by `extractPost` in `noteTokenCache` keyed by noteId — the
+  `/api/v1/statuses/:id` route falls back to it. The cache is in-memory per
+  isolate (`ponytail:` in xhs.ts); KV/Cache API is the upgrade if misses show.
+- The status route must ALWAYS return a valid status shape — errors go through
+  `buildFallbackStatus` (the error text becomes the post text), never a raw
+  `{error}` blob.
+- The player page (`/users/:username/statuses/:id` with `text/html`) is the
+  human-facing media page; keep it content-negotiated so Discord gets JSON.
 
 ## XHS domain knowledge (all live-verified; trust it, but re-verify if upstream changes)
 
@@ -150,6 +180,14 @@ re-resolves instead of storing a URL.
    so it cannot cross `/`.
 5. `:id` path params can contain `%2F`-encoded slashes (Hono decodes them);
    they flow into xhslink.com paths only, never arbitrary hosts.
+6. Never log `XHS_COOKIES` or raw page state — an earlier port of the
+   Mastodon code carried `console.log(cookie)`; do not reintroduce it.
+
+## Config
+
+- `XHS_COOKIES` (secret) — logged-in session cookie string; see README.
+- `WORKER_URL` (var, optional) — pins the canonical public URL (custom domain)
+  used in `og:url` / Mastodon status URIs instead of the request Host.
 
 ## Tests
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNoteHeaders, classifyRedirect, extractPost, parseState, rewriteNoteUrl, upgradeScheme, XHS_HEADERS } from "../src/xhs";
+import { buildNoteHeaders, classifyRedirect, extractPost, getCachedNoteToken, parseState, rewriteNoteUrl, upgradeScheme, XHS_HEADERS } from "../src/xhs";
 import imageState from "./fixtures/image.json";
 import videoState from "./fixtures/video.json";
 
@@ -84,6 +84,10 @@ describe("extractPost video", () => {
     expect(post.tags).toContain("百变小樱");
     expect(post.images.length).toBeGreaterThan(0);
     for (const u of post.images) expect(u.startsWith("https://")).toBe(true);
+  });
+  it("captures and caches the note's xsecToken", () => {
+    expect(post.xsecToken).toBe("CBhVQ9Qzly1kglTtekHuYQGJxUKRkK6e6Z6bYabwYHVHQ=");
+    expect(getCachedNoteToken("6aa69315000000000d02643c")).toBe(post.xsecToken);
   });
 });
 

@@ -34,6 +34,33 @@ export interface Post {
   ipLocation: string;
   time: number;
   tags: string[];
+  xsecToken?: string;
+}
+
+// ponytail: Discord fetches the Mastodon status route with no query params,
+// but XHS note pages need the share link's xsec_token. Every successful
+// extractPost caches the note's own token here so a later token-less status
+// lookup can reuse it. In-memory per isolate; swap for KV if it proves flaky.
+const noteTokenCache = new Map<string, string>();
+
+export function cacheNoteToken(noteId: string, token: string): void {
+  noteTokenCache.set(noteId, token);
+}
+
+export function getCachedNoteToken(noteId: string): string | undefined {
+  return noteTokenCache.get(noteId);
+}
+
+// ponytail: the fake-Mastodon identity is arbitrary — Discord only reads it
+// for display, so it does not need to reflect the real XHS author
+export const MASTODON_USERNAME = "xiaohongshu";
+
+export function statusUri(workerUrl: string, noteId: string): string {
+  return `${workerUrl}/users/${MASTODON_USERNAME}/statuses/${noteId}`;
+}
+
+export function accountUri(workerUrl: string): string {
+  return `${workerUrl}/users/${MASTODON_USERNAME}`;
 }
 
 export function upgradeScheme(url: string): string {
@@ -169,8 +196,12 @@ export function extractPost(state: any): Post {
   }
 
   const ii = note.interactInfo ?? {};
+  const noteId = String(note.noteId ?? firstNoteId);
+  const xsecToken = String(note.xsecToken ?? note.user?.xsecToken ?? "") || undefined;
+  if (xsecToken) cacheNoteToken(noteId, xsecToken);
+
   return {
-    noteId: String(note.noteId ?? firstNoteId),
+    noteId,
     type: String(note.type ?? "normal"),
     title: String(note.title ?? ""),
     desc: String(note.desc ?? ""),
@@ -186,5 +217,6 @@ export function extractPost(state: any): Post {
     ipLocation: String(note.ipLocation ?? ""),
     time: Number(note.time) || 0,
     tags: (note.tagList ?? []).map((t: any) => String(t.name ?? "")).filter(Boolean),
+    xsecToken,
   };
 }

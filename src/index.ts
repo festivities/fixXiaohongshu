@@ -1,8 +1,9 @@
 import { Hono, type Context } from "hono";
 import { createEmbed, errorHtml } from "./embed";
-import { extractPost, fetchNote, parseState, resolveShortlink, CHROME_UA } from "./xhs";
+import { buildFallbackStatus, buildPlayerPage, buildStatus } from "./mastodon";
+import { extractPost, fetchNote, getCachedNoteToken, parseState, resolveShortlink, CHROME_UA } from "./xhs";
 
-type AppEnv = { Bindings: { XHS_COOKIES?: string } };
+type AppEnv = { Bindings: { XHS_COOKIES?: string; WORKER_URL?: string } };
 
 const app = new Hono<AppEnv>();
 
@@ -10,6 +11,16 @@ function cookieOf(c: Context<AppEnv>): string | undefined {
   const v = c.env.XHS_COOKIES?.trim();
   return v ? v : undefined;
 }
+
+// ponytail: WORKER_URL pins the canonical public URL (custom domain / proxy)
+// instead of trusting the request Host; falls back to the request origin
+function workerUrlOf(c: Context<AppEnv>): string {
+  const configured = c.env.WORKER_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  return new URL(c.req.url).origin;
+}
+
+const NO_STORE = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
 function isEmbedRequest(c: Context<AppEnv>): boolean {
   const ua = c.req.header("User-Agent") ?? c.req.header("user-agent") ?? "";
@@ -30,7 +41,7 @@ async function embedFromNoteUrl(noteUrl: string, origin: string, currentPath: st
 
 async function handleShare(c: Context<AppEnv>, kind: "o" | "a", id: string) {
   const url = new URL(c.req.url);
-  const origin = url.origin;
+  const origin = workerUrlOf(c);
   const currentPath = url.pathname + url.search;
   if (!isEmbedRequest(c)) {
     return c.redirect(`http://xhslink.com/${kind}/${id}`, 302);
@@ -54,7 +65,7 @@ app.get("/a/:id", (c) => handleShare(c, "a", c.req.param("id")));
 
 app.get("/explore/:noteId", async (c) => {
   const url = new URL(c.req.url);
-  const origin = url.origin;
+  const origin = workerUrlOf(c);
   const currentPath = url.pathname + url.search;
   const noteId = c.req.param("noteId");
   const cookie = cookieOf(c);
@@ -68,6 +79,55 @@ app.get("/explore/:noteId", async (c) => {
   try {
     const html = await embedFromNoteUrl(`https://${host}/explore/${noteId}${url.search}`, origin, currentPath, undefined, cookie);
     return c.html(html);
+  } catch (e) {
+    return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
+  }
+});
+
+// ponytail: Mastodon status lookup by raw noteId — Discord calls this without
+// query params, so fall back to the token cached when the /o or /explore page
+// was crawled (see noteTokenCache in xhs.ts)
+async function resolveStatusPost(c: Context<AppEnv>, noteId: string) {
+  const url = new URL(c.req.url);
+  const cookie = cookieOf(c);
+  const host = cookie ? "www.rednote.com" : "www.xiaohongshu.com";
+  const search = new URLSearchParams(url.search);
+  if (!search.get("xsec_token")) {
+    const cached = getCachedNoteToken(noteId);
+    if (cached) search.set("xsec_token", cached);
+  }
+  const qs = search.toString();
+  const noteUrl = `https://${host}/explore/${noteId}${qs ? `?${qs}` : ""}`;
+  const post = extractPost(parseState(await fetchNote(noteUrl, cookie)));
+  return { post, noteUrl };
+}
+
+async function statusJson(c: Context<AppEnv>, noteId: string) {
+  const workerUrl = workerUrlOf(c);
+  try {
+    const { post, noteUrl } = await resolveStatusPost(c, noteId);
+    return buildStatus(post, workerUrl, noteUrl);
+  } catch (e) {
+    return buildFallbackStatus(noteId, workerUrl, e instanceof Error ? e.message : String(e));
+  }
+}
+
+app.get("/api/v1/statuses/:id", async (c) => {
+  return c.json(await statusJson(c, c.req.param("id")), 200, NO_STORE);
+});
+
+// ponytail: one URL serves both sides of the fake — Discord (no text/html in
+// Accept) gets the activity+json status, humans get the media player page
+app.get("/users/:username/statuses/:id", async (c) => {
+  const noteId = c.req.param("id");
+  const accept = c.req.header("accept") ?? "";
+  if (!accept.includes("text/html")) {
+    const status = await statusJson(c, noteId);
+    return c.json(status, 200, { ...NO_STORE, "Content-Type": "application/activity+json; charset=UTF-8" });
+  }
+  try {
+    const { post } = await resolveStatusPost(c, noteId);
+    return c.html(buildPlayerPage(post));
   } catch (e) {
     return c.html(errorHtml(e instanceof Error ? e.message : String(e)));
   }

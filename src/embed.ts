@@ -1,5 +1,5 @@
 import { encode } from "html-entities";
-import type { Post } from "./xhs";
+import { statusUri, type Post } from "./xhs";
 
 export function cleanDesc(desc: string): string {
   return desc
@@ -22,6 +22,11 @@ export function createEmbed(post: Post, opts: { origin: string; currentPath: str
   const title = displayTitle(post);
   const desc = truncate(cleanDesc(post.desc));
   const url = `${opts.origin}${opts.currentPath}`;
+  // ponytail: the activity+json alternate is what makes Discord treat this as
+  // a Mastodon status (rich text + up to 4 images / video). The token rides on
+  // the link because Discord may fetch it verbatim with no other query.
+  const activityBase = statusUri(opts.origin, post.noteId);
+  const activityUrl = post.xsecToken ? `${activityBase}?xsec_token=${encodeURIComponent(post.xsecToken)}` : activityBase;
   const image = post.images[0] ?? post.user.avatar;
   const siteName = `❤️ ${post.interactInfo.liked}  💬 ${post.interactInfo.comment}  ⭐ ${post.interactInfo.collected}  🔁 ${post.interactInfo.share}`;
 
@@ -34,6 +39,8 @@ export function createEmbed(post: Post, opts: { origin: string; currentPath: str
     `<meta property="og:url" content="${encode(url)}">`,
     `<meta property="og:image" content="${encode(image)}">`,
     `<title>${encode(title)}</title>`,
+    `<link rel="canonical" href="${encode(url)}">`,
+    `<link rel="alternate" href="${encode(activityUrl)}" type="application/activity+json">`,
   ];
 
   if (post.video) {

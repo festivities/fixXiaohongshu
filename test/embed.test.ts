@@ -14,6 +14,7 @@ const base: Post = {
   ipLocation: "上海",
   time: 1789488610000,
   tags: ["百变小樱"],
+  xsecToken: "TOKEN=",
 };
 
 describe("cleanDesc", () => {
@@ -66,6 +67,11 @@ describe("createEmbed video", () => {
     expect(evil).toContain("&lt;script&gt;");
     expect(evil).toContain("&amp;");
     expect(evil).toContain("&quot;");
+  });
+  it("links the Mastodon status as an activity+json alternate with the token", () => {
+    expect(html).toContain('<link rel="canonical" href="https://xhslink.festivity.moe/o/abc123"');
+    expect(html).toContain('type="application/activity+json"');
+    expect(html).toContain("/users/xiaohongshu/statuses/6aa69315000000000d02643c?xsec_token=TOKEN%3D");
   });
 });
 
