@@ -72,6 +72,21 @@ describe("extractPost video", () => {
     expect(post.video!.width).toBe(1080);
   });
 
+  it("falls back to EF4 (rednote session keys) when classic keys are empty", () => {
+    const state = JSON.parse(JSON.stringify(videoState));
+    const note = state.note.noteDetailMap[state.note.firstNoteId].note;
+    note.video.media.stream = {
+      h264: [],
+      h265: [],
+      h266: [],
+      av1: [],
+      EF4: [{ masterUrl: "http://sns-v27.rednotecdn.com/v.mp4", width: 1280, height: 720, duration: 25146, backupUrls: [] }],
+    };
+    const post = extractPost(state);
+    expect(post.video!.url).toBe("https://sns-v27.rednotecdn.com/v.mp4");
+    expect(post.video!.width).toBe(1280);
+  });
+
   it("omits video when no stream entry has a masterUrl", () => {
     const state = JSON.parse(JSON.stringify(videoState));
     const note = state.note.noteDetailMap[state.note.firstNoteId].note;

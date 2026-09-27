@@ -170,9 +170,12 @@ export function extractPost(state: any): Post {
   const images: string[] = (note.imageList ?? []).map((img: any) => upgradeScheme(String(img.urlDefault ?? ""))).filter(Boolean);
 
   let video: Post["video"];
+  // ponytail: rednote.com with session cookies serves SSR under EF4/EF5/EF6/EF7
+  // (= h264/h265/h266/av1 equivalents — matched by bitrate/stream id), while
+  // anonymous xiaohongshu.com uses classic keys; check both, classic first
   const stream = note.video?.media?.stream;
   if (stream && typeof stream === "object") {
-    const keys = ["h264", "h265", "h266", "av1"];
+    const keys = ["h264", "h265", "h266", "av1", "EF4", "EF5", "EF6", "EF7"];
     let entries: any[] = [];
     for (const k of keys) {
       if (Array.isArray(stream[k]) && stream[k].length > 0) {

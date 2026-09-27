@@ -137,10 +137,12 @@ the margin.
 - Path: `state.note.firstNoteId` (plain string in SSR; browser-hydrated state
   wraps it in a Vue ref `{_value}` — extractPost defensively unwraps) →
   `state.note.noteDetailMap[firstNoteId].note`.
-- Video streams live at `note.video.media.stream.{h264,h265,h266,av1}` in SSR.
-  (Browser-hydrated state uses different keys `EF4/EF5/...` — irrelevant, we
-  only parse SSR.) Prefer `h264`, fall back to first non-empty of
-  h265/h266/av1, pick the max `width*height` entry.
+- Video streams live at `note.video.media.stream.{h264,h265,h266,av1}` in
+  anonymous SSR (xiaohongshu.com) — but a session-cookie fetch (rednote.com)
+  serves the same data under `{EF4,EF5,EF6,EF7}` (verified equivalents:
+  EF4≡h264, EF5≡h265, matched by bitrate/stream id). extractPost checks
+  classic keys first, then EF keys. Prefer highest codec compatibility
+  (h264 → h265 → h266 → av1 order), pick the max `width*height` entry.
 - `imageList[].urlDefault` are `http://` — upgrade to https (only
   `*.xhscdn.com` hosts; see `upgradeScheme`). masterUrl/backupUrls likewise.
 - Image posts (`type: "normal"`) have NO `video` key and often an empty
@@ -174,7 +176,8 @@ re-resolves instead of storing a URL.
 2. `resolveShortlink` validates the Location host (`www.xiaohongshu.com`) and
    path prefix (`/discovery/item/` or `/explore/`) before use — the worker must
    never be turned into an open fetcher/redirector.
-3. `/dl` asserts the video host ends with `.xhscdn.com` before fetching.
+3. `/dl` asserts the video host ends with `.xhscdn.com` or `.rednotecdn.com`
+   (cookie mode serves videos off the latter) before fetching.
 4. `upgradeScheme` only rewrites `http://` for `*.xhscdn.com` and
    `*.rednotecdn.com` (rednote serves images off the latter) — regex anchored
    so it cannot cross `/`.

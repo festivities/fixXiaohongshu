@@ -142,7 +142,7 @@ app.get("/dl/:id", async (c) => {
     const post = extractPost(parseState(await fetchNote(noteUrl, cookie)));
     if (!post.video?.url) throw new Error("no video found for this post");
     const host = new URL(post.video.url).host;
-    if (!host.endsWith(".xhscdn.com")) throw new Error(`unexpected video host: ${host}`);
+    if (!host.endsWith(".xhscdn.com") && !host.endsWith(".rednotecdn.com")) throw new Error(`unexpected video host: ${host}`);
     // ponytail: stream bytes (200) rather than 302 — Discord's video unfurler does not reliably follow redirects on og:video
     const range = c.req.header("range");
     const up = await fetch(post.video.url, {
